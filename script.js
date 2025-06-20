@@ -1,100 +1,78 @@
-
-const video = document.querySelector("video");
-const audio = document.querySelector("audio");
+const video = document.querySelector(".video");
+const audio = document.querySelector(".audio");
 const playButton = document.querySelector(".play");
 const timeDisplay = document.querySelector(".time-display");
-const timeButtons = document.querySelectorAll(".time-select button");
+const timeButtons = document.querySelectorAll("#time-select button");
 const soundButtons = document.querySelectorAll(".sound-picker button");
 
-let fakeDuration = 600; 
-let currentPlaying = false;
+let duration = 600; // default 10 minutes
+let timer;
+let isPlaying = false;
 
-
-video.onerror = () => {
-  console.error("Video failed to load. Please check the source path.");
-};
-
-audio.onerror = () => {
-  console.error("Audio failed to load. Please check the source path.");
-};
-
-
-function updateDisplay(duration) {
-  const minutes = Math.floor(duration / 60);
-  const seconds = Math.floor(duration % 60);
-  timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+// Update time display
+function updateDisplay(timeLeft) {
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  timeDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 }
 
-function togglePlay() {
-  if (!audio.src || !video.src) {
-    console.error("Missing audio or video source.");
-    return;
-  }
-
-  if (audio.paused) {
+// Toggle play/pause
+playButton.addEventListener("click", () => {
+  if (!isPlaying) {
     audio.play();
     video.play();
-    playButton.src = "./svg/pause.svg";
-    currentPlaying = true;
+    playButton.textContent = "Pause";
+    isPlaying = true;
+
+    const start = Date.now();
+    timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      const timeLeft = duration - elapsed;
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        audio.pause();
+        audio.currentTime = 0;
+        video.pause();
+        video.currentTime = 0;
+        playButton.textContent = "Play";
+        isPlaying = false;
+        updateDisplay(duration);
+      } else {
+        updateDisplay(timeLeft);
+      }
+    }, 1000);
   } else {
     audio.pause();
     video.pause();
-    playButton.src = "./svg/play.svg";
-    currentPlaying = false;
+    playButton.textContent = "Play";
+    clearInterval(timer);
+    isPlaying = false;
   }
-}
+});
 
+// Change duration
+timeButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    duration = parseInt(btn.getAttribute("data-time"));
+    updateDisplay(duration);
+  });
+});
 
-timeButtons.forEach(button => {
-  button.addEventListener("click", function () {
-    fakeDuration = parseInt(this.getAttribute("data-time"));
-    updateDisplay(fakeDuration);
-    audio.currentTime = 0;
-    video.currentTime = 0;
-    if (currentPlaying) {
+// Switch sounds/videos
+soundButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const newSound = btn.getAttribute("data-sound");
+    const newVideo = btn.getAttribute("data-video");
+
+    audio.src = newSound;
+    video.src = newVideo;
+
+    if (isPlaying) {
       audio.play();
       video.play();
     }
   });
 });
 
-soundButtons.forEach(button => {
-  button.addEventListener("click", function () {
-    const sound = this.getAttribute("data-sound");
-    const videoSrc = this.getAttribute("data-video");
-
-    audio.src = sound;
-    video.src = videoSrc;
-
-    audio.currentTime = 0;
-    video.currentTime = 0;
-
-    if (currentPlaying) {
-      audio.play();
-      video.play();
-    }
-  });
-});
-
-
-audio.ontimeupdate = function () {
-  const currentTime = audio.currentTime;
-  const remaining = fakeDuration - currentTime;
-
-  updateDisplay(remaining);
-
-  if (currentTime >= fakeDuration) {
-    audio.pause();
-    video.pause();
-    playButton.src = "./svg/play.svg";
-    audio.currentTime = 0;
-    video.currentTime = 0;
-    updateDisplay(fakeDuration);
-    currentPlaying = false;
-  }
-};
-
-playButton.addEventListener("click", togglePlay);
-
-
-updateDisplay(fakeDuration);
+// Initial display
+updateDisplay(duration);
